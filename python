@@ -1,0 +1,61 @@
+import requests
+import csv
+
+term = 9
+
+def get_voting_results(term, sitting, votingNum):
+    url = f'https://api.sejm.gov.pl/sejm/term{term}/votings/{sitting}/{votingNum}'
+
+    response = requests.get(url)
+    
+    if response.status_code == 200:
+        data = response.json()
+        return data
+    else:
+        print(f'Error {response.status_code}: Nie można pobrać danych.')
+        return None
+
+sitting = 1
+votingNum = 1
+version = 1
+
+# Otwórz plik CSV do zapisu
+with open(f'Sejm_IX_v{version}.csv', 'w', newline='', encoding='utf-8') as csvfile:
+    writer = csv.writer(csvfile)
+    
+    # Zapisz nagłówki kolumn
+    headers = ['abstain', 'date', 'kind', 'no', 'notParticipating', 'sitting', 'sittingDay', 'term', 'title', 'topic', 'totalVoted', 'MP', 'club', 'firstName', 'lastName', 'secondName', 'vote']
+    writer.writerow(headers)
+    
+    # Pętla while do pobierania wyników z kolejnych sesji i głosowań
+    while True:
+        voting_results = get_voting_results(term, sitting, votingNum)
+        if voting_results:
+            # Pobierz dane z wyników głosowania
+            abstain = voting_results.get('abstain', '')
+            date = voting_results.get('date', '')
+            kind = voting_results.get('kind', '')
+            no = voting_results.get('no', '')
+            notParticipating = voting_results.get('notParticipating', '')
+            sitting = voting_results.get('sitting', '')
+            sittingDay = voting_results.get('sittingDay', '')
+            term = voting_results.get('term', '')
+            title = voting_results.get('title', '')
+            topic = voting_results.get('topic', '')
+            totalVoted = voting_results.get('totalVoted', '')
+
+            # Zapisz wyniki głosowania do pliku CSV
+            for vote in voting_results['votes']:
+                row_data = [abstain, date, kind, no, notParticipating, sitting, sittingDay, term, title, topic, totalVoted, vote.get('MP', ''), vote.get('club', ''), vote.get('firstName', ''), vote.get('lastName', ''), vote.get('secondName', ''), vote.get('vote', '')]
+                writer.writerow(row_data)
+            print(f'Wyniki głosowania {sitting}/{votingNum} zostały zapisane do pliku Sejm_IX_v{version}.csv.')
+            votingNum += 1
+        else:
+            # Przejdź do kolejnej sesji
+            sitting += 1
+            votingNum = 1
+            print(f'Przechodzę do sesji {sitting}.')
+        if sitting > 90:  # Zakończ działanie po zapisaniu wyników z 5 sesji (dla przykładu)
+            break
+
+print('Proces zapisywania danych zakończony.')
